@@ -1,0 +1,20 @@
+{% if items.len() == 0 %}
+  <div class="muted">No results.</div>
+{% else %}
+  <div class="muted">Showing {{ items.len() }} of ~{{ total }} results (page from upstream).</div>
+  <div style="display: grid; gap: 10px; margin-top: 10px;">
+    {% for it in items %}
+      <div class="card">
+        <img class="icon" src="{{ it.icon_small }}" alt="" />
+        <div style="flex:1">
+          <div><strong>{{ it.name }}</strong></div>
+          <div class="muted">
+            {{ it.category_name }} • {% if it.members %}<span class="tag">Members</span>{% else %}<span class="tag">F2P</span>{% endif %}
+          </div>
+        </div>
+        <div class="price">{{ it.price_current }}</div>
+        <div class="muted">{{ it.price_trend }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
