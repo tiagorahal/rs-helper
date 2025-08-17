@@ -1,26 +1,86 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8"/>
     <title>rs-helper</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif; margin: 24px; }
-      .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); align-items: end; }
-      label { font-size: 12px; color: #444; display: block; margin-bottom: 4px; }
-      input, select, button { padding: 8px 10px; font-size: 14px; }
-      .row { display:flex; gap:8px; align-items:center; }
-      .results { margin-top: 16px; }
-      .card { display:flex; gap: 12px; align-items:center; border:1px solid #eee; padding:10px; border-radius:8px; }
-      .muted { color:#666; font-size:12px; }
-      .error { color: #b00020; padding: 8px; border: 1px solid #b00020; border-radius: 6px; background:#fff5f6; }
-      img.icon { width: 32px; height: 32px; image-rendering: pixelated; }
-      .tag { font-size: 11px; color:#555; background:#f3f3f3; padding:2px 6px; border-radius: 999px; }
-      .price { font-weight: 600; }
+      :root{
+        --bg:#0b0f19; --card:#101826; --card-2:#0f1420; --text:#e5e7eb; --muted:#9aa4b2;
+        --border:#1f2937; --accent:#7c3aed; --accent-2:#22d3ee;
+        --good:#10b981; --bad:#ef4444; --warn:#f59e0b; --ring:#334155;
+      }
+      @media (prefers-color-scheme: light){
+        :root{
+          --bg:#f8fafc; --card:#ffffff; --card-2:#f1f5f9; --text:#0f172a; --muted:#475569;
+          --border:#e2e8f0; --accent:#6d28d9; --accent-2:#0891b2;
+          --good:#059669; --bad:#dc2626; --warn:#d97706; --ring:#cbd5e1;
+        }
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0; background:linear-gradient(180deg, var(--bg), var(--card-2));
+        color:var(--text); font: 14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+      }
+      .container{max-width:1024px; margin:0 auto; padding:24px}
+      header{
+        border:1px solid var(--border); background:linear-gradient(180deg, rgba(124,58,237,0.15), rgba(34,211,238,0.08));
+        padding:16px 20px; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,0.2); backdrop-filter: blur(6px);
+      }
+      h1{margin:0 0 6px 0; font-size:22px}
+      .muted{color:var(--muted)}
+      .grid{display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); align-items:end}
+      label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px}
+      input, select, button{
+        width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--card);
+        color:var(--text); outline:none;
+      }
+      input:focus, select:focus{box-shadow:0 0 0 3px var(--ring)}
+      .btn{cursor:pointer; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff; border:none; font-weight:600}
+      .btn.ghost{background:transparent; border:1px solid var(--border); color:var(--text)}
+      .row{display:flex; gap:8px; align-items:center}
+      .alpha-bar{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
+      .alpha-btn{
+        padding:6px 10px; border-radius:10px; border:1px solid var(--border); background:var(--card-2);
+        color:var(--text); font-weight:600; cursor:pointer;
+      }
+      .alpha-btn.active{border-color:var(--accent-2); box-shadow: 0 0 0 2px rgba(34,211,238,0.35) inset}
+      .results{margin-top:16px}
+      .cards{display:grid; gap:10px}
+      .card{
+        display:grid; grid-template-columns: 40px 1fr auto; gap:12px; align-items:center;
+        background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px 12px;
+      }
+      img.icon{width:32px;height:32px; image-rendering: pixelated}
+      .title{font-weight:700}
+      .badge{font-size:11px; color:#fff; background: linear-gradient(180deg, #475569, #0f172a); padding:2px 8px; border-radius:999px}
+      .badge.m{background: linear-gradient(180deg, #3b82f6, #0ea5e9)}
+      .price{font-weight:700; text-align:right}
+      .price.positive{color:var(--good)}
+      .price.negative{color:var(--bad)}
+      .price.neutral{color:var(--text)}
+      .toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 8px}
+      .pager{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:12px}
+      /* htmx indicator */
+      .spinner{display:none; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent-2); border-radius:50%; }
+      @keyframes spin{to{transform:rotate(360deg)}}
+      .htmx-request .spinner{display:inline-block; animation:spin .8s linear infinite}
+      .segmented{
+        display:inline-flex; gap:0; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--card);
+      }
+      .segmented label{margin:0}
+      .segmented input{display:none}
+      .segmented span{
+        display:inline-block; padding:8px 12px; cursor:pointer; user-select:none; color:var(--muted);
+      }
+      .segmented input:checked + span{ background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff}
     </style>
   </head>
   <body>
-    {% block content %}{% endblock %}
+    <div class="container">
+      {% block content %}{% endblock %}
+    </div>
   </body>
 </html>

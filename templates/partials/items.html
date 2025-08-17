@@ -1,20 +1,66 @@
+<!-- mantém alpha/page sincronizados com o form via OOB -->
+<input id="alpha" name="alpha" type="hidden" value="{{ alpha }}" hx-swap-oob="true" />
+<input id="page"  name="page"  type="hidden" value="{{ page }}"  hx-swap-oob="true" />
+
+<div class="toolbar">
+  <div class="muted">Showing {{ items.len() }} of ~{{ total }} (page {{ page }})</div>
+  <div class="alpha-bar">
+    {% for lt in letters %}
+      <button class="alpha-btn {% if lt.active %}active{% endif %}"
+              hx-get="/ui/ge/items"
+              hx-target="#results"
+              hx-include="#search"
+              hx-vals='{"alpha":"{{ lt.ch }}","page":1}'>
+        {{ lt.ch|upper }}
+      </button>
+    {% endfor %}
+  </div>
+</div>
+
 {% if items.len() == 0 %}
-  <div class="muted">No results.</div>
+  <div class="muted">No results for this selection. Try another letter or search term.</div>
 {% else %}
-  <div class="muted">Showing {{ items.len() }} of ~{{ total }} results (page from upstream).</div>
-  <div style="display: grid; gap: 10px; margin-top: 10px;">
+  <div class="cards">
     {% for it in items %}
-      <div class="card">
-        <img class="icon" src="{{ it.icon_small }}" alt="" />
-        <div style="flex:1">
-          <div><strong>{{ it.name }}</strong></div>
+      <div class="card" data-id="{{ it.id }}">
+        <img class="icon" src="{{ it.icon_small }}" alt="" loading="lazy"/>
+        <div>
+          <div class="title">{{ it.name }}</div>
           <div class="muted">
-            {{ it.category_name }} • {% if it.members %}<span class="tag">Members</span>{% else %}<span class="tag">F2P</span>{% endif %}
+            {{ it.category_name }} •
+            {% if it.members %}
+              <span class="badge m">Members</span>
+            {% else %}
+              <span class="badge">F2P</span>
+            {% endif %}
           </div>
         </div>
-        <div class="price">{{ it.price_current }}</div>
-        <div class="muted">{{ it.price_trend }}</div>
+        <div class="price {{ it.price_trend }}">{{ it.price_current }}</div>
       </div>
     {% endfor %}
+  </div>
+
+  <div class="pager">
+    {% if page > 1 %}
+      <button class="btn ghost"
+              hx-get="/ui/ge/items"
+              hx-target="#results"
+              hx-include="#search"
+              hx-vals='{"page":{{ page - 1 }},"alpha":"{{ alpha }}"}'>
+        ← Prev
+      </button>
+    {% else %}
+      <span></span>
+    {% endif %}
+
+    <div class="muted">Page {{ page }}</div>
+
+    <button class="btn ghost"
+            hx-get="/ui/ge/items"
+            hx-target="#results"
+            hx-include="#search"
+            hx-vals='{"page":{{ page + 1 }},"alpha":"{{ alpha }}"}'>
+      Next →
+    </button>
   </div>
 {% endif %}

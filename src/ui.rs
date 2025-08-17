@@ -12,10 +12,6 @@ pub fn router() -> Router {
 }
 
 #[derive(Template)]
-#[template(path = "base.html")]
-struct BaseT;
-
-#[derive(Template)]
 #[template(path = "index.html")]
 struct IndexT<'a> {
     categories: &'a [GeCategory],
@@ -26,6 +22,9 @@ struct IndexT<'a> {
 struct ItemsT<'a> {
     items: &'a [UiItem],
     total: i64,
+    page: u32,
+    alpha: String,
+    letters: &'a [Letter],
 }
 
 pub async fn index() -> Html<String> {
@@ -35,11 +34,11 @@ pub async fn index() -> Html<String> {
 #[derive(Debug, Deserialize)]
 pub struct UiItemsQuery {
     pub category: i32,
-    pub alpha: Option<String>,  // a-z ou "#"
-    pub q: Option<String>,      // termo de busca (name contains)
+    pub alpha: Option<String>,
+    pub q: Option<String>,
     #[serde(default)]
-    pub game: Game,             // rs3 | osrs (default rs3)
-    pub page: Option<u32>,      // paginação upstream (1..N)
+    pub game: Game,   // rs3 | osrs
+    pub page: Option<u32>,
 }
 
 pub async fn items_partial(Query(q): Query<UiItemsQuery>) -> Html<String> {
@@ -49,32 +48,34 @@ pub async fn items_partial(Query(q): Query<UiItemsQuery>) -> Html<String> {
     let list = match fetch_items_for_ui(q.category, &alpha, page, q.game).await {
         Ok(v) => v,
         Err(e) => {
-            let _empty: Vec<UiItem> = vec![];
-            let msg = format!("Error: {e}");
-            let html = format!("<div class='error'>{}</div>", askama_escape(&msg));
+            let msg = format!("Error: {}", askama_escape(&e));
+            let html = format!("<div class='error'>{}</div>", msg);
             return Html(html);
         }
     };
 
-    let mut items: Vec<UiItem> = list.items.into_iter()
-        .filter(|it| {
-            if let Some(ref term) = q.q {
-                let t = term.trim().to_lowercase();
-                if t.is_empty() { return true; }
-                it.name.to_lowercase().contains(&t)
-            } else { true }
-        })
-        .map(UiItem::from)
+    let items: Vec<UiItem> = list.items.into_iter().map(UiItem::from).collect();
+
+    // barra de letras pronta para o template (sem comparar tipos lá)
+    const LETTERS: [&str; 27] = [
+        "a","b","c","d","e","f","g","h","i","j","k","l","m","n",
+        "o","p","q","r","s","t","u","v","w","x","y","z","#"
+    ];
+    let letters_vec: Vec<Letter> = LETTERS
+        .iter()
+        .map(|&ch| Letter { ch, active: alpha == ch })
         .collect();
 
-    if items.len() > 50 {
-        items.truncate(50);
-    }
-
-    Html(ItemsT { items: &items, total: list.total }.render().unwrap())
+    Html(ItemsT {
+        items: &items,
+        total: list.total,
+        page,
+        alpha,
+        letters: &letters_vec,
+    }.render().unwrap())
 }
 
-/// Modelo “sanitizado” para renderização
+/// Modelo para renderização
 #[derive(Debug)]
 struct UiItem {
     id: i64,
@@ -82,7 +83,7 @@ struct UiItem {
     category_name: String,
     members: bool,
     price_current: String,
-    price_trend: String,
+    price_trend: String, // "positive" | "negative" | "neutral"
     icon_small: String,
 }
 
@@ -100,7 +101,11 @@ impl From<GeItem> for UiItem {
     }
 }
 
-// -------- utils ----------
+#[derive(Debug)]
+struct Letter {
+    ch: &'static str,
+    active: bool,
+}
 
 fn format_compact(v: i64) -> String {
     let abs = (v as f64).abs();
@@ -114,11 +119,7 @@ fn format_compact(v: i64) -> String {
         (abs, "")
     };
     let sign = if v < 0 { "-" } else { "" };
-    if suf.is_empty() {
-        format!("{sign}{}", v.abs())
-    } else {
-        format!("{sign}{:.2}{}", num, suf)
-    }
+    if suf.is_empty() { format!("{sign}{}", v.abs()) } else { format!("{sign}{:.2}{}", num, suf) }
 }
 
 fn askama_escape(s: &str) -> String {
