@@ -15,11 +15,8 @@ async fn main() {
         .allow_headers(Any);
 
     let app = Router::new()
-        // UI (páginas/fragmentos HTML)
         .nest("/", ui::router())
-        // API JSON
         .nest("/v1/ge", ge::router())
-        // Health
         .route("/healthz", get(|| async { "ok" }))
         .layer(cors)
         .layer(TraceLayer::new_for_http());

@@ -50,11 +50,8 @@ pub struct GeIcons {
 
 #[derive(Debug, Serialize)]
 pub struct GePrice {
-    /// "neutral" | "positive" | "negative"
     pub trend: String,
-    /// preço atual em unidades (ex.: 17_000_000)
     pub current: Option<i64>,
-    /// variação do dia em unidades (pode ser negativa)
     pub today_change: Option<i64>,
 }
 
@@ -71,8 +68,6 @@ pub struct TsPrice {
     pub price: i64,
 }
 
-/// Converte "17.0m" ou "-897.2k" para inteiro.
-/// Aceita também números puros ("12345").
 pub fn parse_price_to_i64(s: &serde_json::Value) -> Option<i64> {
     match s {
         serde_json::Value::Number(n) => n.as_i64(),

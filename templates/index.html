@@ -2,41 +2,19 @@
 {% block content %}
   <header>
     <h1>rs-helper</h1>
-    <div class="muted">CORS-safe RuneScape data. Search items by category and first letter.</div>
+    <div class="muted">CORS-safe RuneScape data. Type an item name and press <strong>Search</strong>.</div>
   </header>
 
   <form id="search"
         class="grid"
         hx-get="/ui/ge/items"
         hx-target="#results"
-        hx-trigger="submit, change, keyup changed delay:300ms from:#q">
+        hx-trigger="submit"
+        hx-indicator="#global-indicator">
 
     <div>
       <label for="q">Search</label>
-      <input id="q" name="q" type="text" placeholder="e.g., boots" />
-    </div>
-
-    <div>
-      <label for="category">Category</label>
-      <select id="category" name="category">
-        {% for c in categories %}
-          <option value="{{ c.id }}">{{ c.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div>
-      <label>Game</label>
-      <div class="segmented">
-        <label>
-          <input type="radio" name="game" value="rs3" checked>
-          <span>RS3</span>
-        </label>
-        <label>
-          <input type="radio" name="game" value="osrs">
-          <span>OSRS</span>
-        </label>
-      </div>
+      <input id="q" name="q" type="text" placeholder="e.g., boots" autofocus />
     </div>
 
     <div>
@@ -44,12 +22,14 @@
       <button class="btn" type="submit">Search</button>
     </div>
 
-    <!-- mantemos alpha no form e deixamos o partial atualizar via OOB -->
-    <input id="alpha" name="alpha" type="hidden" value="a" />
-    <input id="page"  name="page"  type="hidden" value="1" />
+    <input id="page" name="page" type="hidden" value="1" />
   </form>
 
-  <div class="results" id="results" hx-indicator="#spinner">
-    <div class="spinner" id="spinner" aria-hidden="true"></div>
+  <div id="global-indicator" class="htmx-indicator" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <span>Carregando dados da API…</span>
+  </div>
+
+  <div class="results" id="results" hx-indicator="#global-indicator">
   </div>
 {% endblock %}

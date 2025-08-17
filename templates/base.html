@@ -41,12 +41,6 @@
       .btn{cursor:pointer; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff; border:none; font-weight:600}
       .btn.ghost{background:transparent; border:1px solid var(--border); color:var(--text)}
       .row{display:flex; gap:8px; align-items:center}
-      .alpha-bar{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
-      .alpha-btn{
-        padding:6px 10px; border-radius:10px; border:1px solid var(--border); background:var(--card-2);
-        color:var(--text); font-weight:600; cursor:pointer;
-      }
-      .alpha-btn.active{border-color:var(--accent-2); box-shadow: 0 0 0 2px rgba(34,211,238,0.35) inset}
       .results{margin-top:16px}
       .cards{display:grid; gap:10px}
       .card{
@@ -63,19 +57,12 @@
       .price.neutral{color:var(--text)}
       .toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 8px}
       .pager{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:12px}
-      /* htmx indicator */
-      .spinner{display:none; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent-2); border-radius:50%; }
+
+      .htmx-indicator{display:none; align-items:center; gap:.5rem; color:var(--muted)}
+      .htmx-indicator.htmx-request{display:inline-flex}
+      .spinner{width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent-2); border-radius:50%}
       @keyframes spin{to{transform:rotate(360deg)}}
-      .htmx-request .spinner{display:inline-block; animation:spin .8s linear infinite}
-      .segmented{
-        display:inline-flex; gap:0; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--card);
-      }
-      .segmented label{margin:0}
-      .segmented input{display:none}
-      .segmented span{
-        display:inline-block; padding:8px 12px; cursor:pointer; user-select:none; color:var(--muted);
-      }
-      .segmented input:checked + span{ background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff}
+      .htmx-indicator.htmx-request .spinner{animation:spin .8s linear infinite}
     </style>
   </head>
   <body>

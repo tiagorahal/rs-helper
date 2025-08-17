@@ -1,24 +1,11 @@
-<!-- mantém alpha/page sincronizados com o form via OOB -->
-<input id="alpha" name="alpha" type="hidden" value="{{ alpha }}" hx-swap-oob="true" />
-<input id="page"  name="page"  type="hidden" value="{{ page }}"  hx-swap-oob="true" />
+<input id="page" name="page" type="hidden" value="{{ page }}" hx-swap-oob="true" />
 
 <div class="toolbar">
   <div class="muted">Showing {{ items.len() }} of ~{{ total }} (page {{ page }})</div>
-  <div class="alpha-bar">
-    {% for lt in letters %}
-      <button class="alpha-btn {% if lt.active %}active{% endif %}"
-              hx-get="/ui/ge/items"
-              hx-target="#results"
-              hx-include="#search"
-              hx-vals='{"alpha":"{{ lt.ch }}","page":1}'>
-        {{ lt.ch|upper }}
-      </button>
-    {% endfor %}
-  </div>
 </div>
 
 {% if items.len() == 0 %}
-  <div class="muted">No results for this selection. Try another letter or search term.</div>
+  <div class="muted">No results. Try a different name.</div>
 {% else %}
   <div class="cards">
     {% for it in items %}
@@ -46,7 +33,7 @@
               hx-get="/ui/ge/items"
               hx-target="#results"
               hx-include="#search"
-              hx-vals='{"page":{{ page - 1 }},"alpha":"{{ alpha }}"}'>
+              hx-vals='{"page":{{ page - 1 }}}'>
         ← Prev
       </button>
     {% else %}
@@ -59,7 +46,7 @@
             hx-get="/ui/ge/items"
             hx-target="#results"
             hx-include="#search"
-            hx-vals='{"page":{{ page + 1 }},"alpha":"{{ alpha }}"}'>
+            hx-vals='{"page":{{ page + 1 }}}'>
       Next →
     </button>
   </div>

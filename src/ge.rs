@@ -90,7 +90,6 @@ pub async fn ge_info(Query(q): Query<InfoQuery>) -> Result<Json<GeInfo>, (axum::
 
     Ok(Json(GeInfo {
         runedate,
-        // Upstream não traz um ISO direto — deixamos None por enquanto
         last_updated_at: None,
     }))
 }
@@ -104,12 +103,25 @@ pub async fn ge_categories() -> Result<Json<GeCategories>, (axum::http::StatusCo
 pub async fn ge_items(
     Query(q): Query<ItemsQuery>,
 ) -> Result<Json<GeItemList>, (axum::http::StatusCode, Json<ErrorBody>)> {
-    let alpha = q.alpha.as_deref().unwrap_or("a");
+    let alpha = q.alpha.as_deref().unwrap_or("all");
     let page = q.page.unwrap_or(1);
+
+    if alpha == "all" {
+        let res = fetch_items_all_for_ui(q.category, page, q.game)
+            .await
+            .map_err(|e| (axum::http::StatusCode::BAD_GATEWAY, Json(ErrorBody {
+                code: "upstream_error".into(),
+                message: e,
+            })))?;
+        return Ok(Json(res));
+    }
 
     let res = fetch_items_for_ui(q.category, alpha, page, q.game)
         .await
-        .map_err(|e| (axum::http::StatusCode::BAD_GATEWAY, Json(ErrorBody { code: "upstream_error".into(), message: e })))?;
+        .map_err(|e| (axum::http::StatusCode::BAD_GATEWAY, Json(ErrorBody {
+            code: "upstream_error".into(),
+            message: e,
+        })))?;
 
     Ok(Json(res))
 }
@@ -220,7 +232,7 @@ pub async fn ge_graph(
     Ok(Json(GeGraph { id, daily, average }))
 }
 
-// ---------------- Função utilitária usada pela UI ----------------
+// ---------------- Funções utilitárias usadas pela UI ----------------
 
 pub async fn fetch_items_for_ui(
     category: i32,
@@ -231,10 +243,16 @@ pub async fn fetch_items_for_ui(
     validate_alpha(alpha).map_err(|e| e.to_string())?;
 
     let (base, cat_name_map) = base_urls(game);
-    let url = format!("{base}/api/catalogue/items.json?category={}&alpha={}&page={}", category, alpha, page);
+
+    let alpha_param = if alpha == "#" { "%23" } else { alpha };
+
+    let url = format!(
+        "{base}/api/catalogue/items.json?category={}&alpha={}&page={}",
+        category, alpha_param, page
+    );
 
     let client = http();
-    let raw: Value = client
+    let raw: serde_json::Value = client
         .get(url)
         .send()
         .await
@@ -295,6 +313,111 @@ pub async fn fetch_items_for_ui(
     }
 
     Ok(GeItemList { total, items: items_out })
+}
+
+async fn fetch_alpha_counts(category: i32, game: Game) -> Result<Vec<(String, i64)>, String> {
+    let (base, _cat_name_map) = base_urls(game);
+    let url = format!("{base}/api/catalogue/category.json?category={category}");
+    let client = http();
+    let raw: serde_json::Value = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    if let Some(alpha_arr) = raw.get("alpha").and_then(|v| v.as_array()) {
+        for ent in alpha_arr {
+            if let (Some(letter), Some(items)) = (
+                ent.get("letter").and_then(|v| v.as_str()),
+                ent.get("items").and_then(|v| v.as_i64()),
+            ) {
+                map.insert(letter.to_string(), items);
+            }
+        }
+    }
+
+    let mut out = Vec::new();
+    for ch in ('a'..='z').map(|c| c.to_string()) {
+        out.push((ch.clone(), *map.get(&ch).unwrap_or(&0)));
+    }
+    out.push(("#".to_string(), *map.get("#").unwrap_or(&0)));
+    Ok(out)
+}
+
+pub async fn fetch_items_all_for_ui(
+    category: i32,
+    page: u32,
+    game: Game,
+) -> Result<GeItemList, String> {
+    const UI_PAGE: usize = 50;
+    const UPSTREAM_PAGE_SIZE: usize = 12;
+
+    let alpha_counts = fetch_alpha_counts(category, game).await?;
+    let total_all: i64 = alpha_counts.iter().map(|(_, n)| *n).sum();
+
+    // offset global a partir da página da UI
+    let mut remaining_offset: usize = ((page.saturating_sub(1)) as usize) * UI_PAGE;
+    let mut collected: Vec<GeItem> = Vec::with_capacity(UI_PAGE);
+
+    for (letter, count_i64) in alpha_counts {
+        let count = usize::try_from(count_i64.max(0)).unwrap_or(0);
+
+        if remaining_offset >= count {
+            remaining_offset -= count;
+            continue;
+        }
+
+        // páginas locais dentro da letra
+        let mut lpage: usize = (remaining_offset / UPSTREAM_PAGE_SIZE) + 1;
+        let mut skip_first: usize = remaining_offset % UPSTREAM_PAGE_SIZE;
+        let lp_end: usize = if count == 0 {
+            0
+        } else {
+            (count + UPSTREAM_PAGE_SIZE - 1) / UPSTREAM_PAGE_SIZE
+        };
+        remaining_offset = 0; // offset já aplicado
+
+        while collected.len() < UI_PAGE && lpage != 0 && lpage <= lp_end {
+            let batch = fetch_items_for_ui(category, &letter, lpage as u32, game).await?;
+
+            if batch.items.is_empty() {
+                break; // acabou essa letra
+            }
+
+            let mut iter = batch.items.into_iter();
+
+            if skip_first > 0 {
+                for _ in 0..skip_first {
+                    if iter.next().is_none() {
+                        break;
+                    }
+                }
+                skip_first = 0;
+            }
+
+            for it in iter {
+                collected.push(it);
+                if collected.len() >= UI_PAGE {
+                    break;
+                }
+            }
+
+            lpage += 1;
+        }
+
+        if collected.len() >= UI_PAGE {
+            break;
+        }
+    }
+
+    Ok(GeItemList {
+        total: total_all,
+        items: collected,
+    })
 }
 
 // ---------------- Helpers ----------------
