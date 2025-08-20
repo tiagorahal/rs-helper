@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Header -->
+<header class="header">
+    <div class="container">
+        <div class="header-content">
+            <div>
+                <h1>
+                    <div class="logo">⚔️</div>
+                    <div>
+                        About RS Helper
+                        <div class="subtitle">High-Performance RuneScape Gateway</div>
+                    </div>
+                </h1>
+            </div>
+            <a href="/" class="theme-toggle" style="text-decoration: none; color: white;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- Content -->
+<section class="results-container">
+    <div class="container">
+        <div style="max-width: 800px; margin: 0 auto;">
+            
+            <!-- Version Info -->
+            <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1rem; color: var(--primary);">Version Information</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div>
+                        <span style="color: var(--text-secondary); font-size: 0.875rem;">Application Version</span>
+                        <div style="font-size: 1.25rem; font-weight: 700;">{{ version }}</div>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); font-size: 0.875rem;">Rust Version</span>
+                        <div style="font-size: 1.25rem; font-weight: 700;">{{ rust_version }}</div>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); font-size: 0.875rem;">Status</span>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: var(--success);">🟢 Operational</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Features -->
+            <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1rem; color: var(--primary);">✨ Features</h2>
+                <div style="display: grid; gap: 1rem;">
+                    <div style="display: flex; align-items: start; gap: 1rem;">
+                        <span style="font-size: 1.5rem;">⚡</span>
+                        <div>
+                            <h3 style="margin-bottom: 0.25rem;">Blazing Fast Performance</h3>
+                            <p style="color: var(--text-secondary);">Built with Rust for maximum speed and efficiency. Sub-millisecond response times with intelligent caching.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: start; gap: 1rem;">
+                        <span style="font-size: 1.5rem;">🔓</span>
+                        <div>
+                            <h3 style="margin-bottom: 0.25rem;">CORS-Friendly API</h3>
+                            <p style="color: var(--text-secondary);">Access RuneScape data directly from browsers without proxy servers or CORS errors.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: start; gap: 1rem;">
+                        <span style="font-size: 1.5rem;">📊</span>
+                        <div>
+                            <h3 style="margin-bottom: 0.25rem;">Real-Time Metrics</h3>
+                            <p style="color: var(--text-secondary);">Prometheus-compatible metrics for complete observability and monitoring.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: start; gap: 1rem;">
+                        <span style="font-size: 1.5rem;">🎮</span>
+                        <div>
+                            <h3 style="margin-bottom: 0.25rem;">RS3 & OSRS Support</h3>
+                            <p style="color: var(--text-secondary);">Seamlessly switch between RuneScape 3 and Old School RuneScape data sources.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Technical Stack -->
+            <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1rem; color: var(--primary);">🛠️ Technical Stack</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                    <div class="tag" style="padding: 0.75rem; text-align: center; background: var(--bg-tertiary);">
+                        🦀 Rust
+                    </div>
+                    <div class="tag" style="padding: 0.75rem; text-align: center; background: var(--bg-tertiary);">
+                        ⚙️ Axum
+                    </div>
+                    <div class="tag" style="padding: 0.75rem; text-align: center; background: var(--bg-tertiary);">
+                        🚀 Tokio
+                    </div>
+                    <div class="tag" style="padding: 0.75rem; text-align: center; background: var(--bg-tertiary);">
+                        💾 Moka Cache
+                    </div>
+                    <div class="tag" style="padding: 0.75rem; text-align: center; background: var(--bg-tertiary);">
+                        📈 Prometheus
+                    </div>
+                    <div class="tag" style="padding: 0.75rem; text-align: center; background: var(--bg-tertiary);">
+                        🎨 HTMX
+                    </div>
+                </div>
+            </div>
+            
+            <!-- API Endpoints -->
+            <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1rem; color: var(--primary);">🌐 API Endpoints</h2>
+                <div style="font-family: monospace; background: var(--bg-primary); padding: 1rem; border-radius: var(--radius); overflow-x: auto;">
+                    <div style="margin-bottom: 0.5rem;">GET /v1/ge/info</div>
+                    <div style="margin-bottom: 0.5rem;">GET /v1/ge/categories</div>
+                    <div style="margin-bottom: 0.5rem;">GET /v1/ge/items?category=&alpha=&page=&game=</div>
+                    <div style="margin-bottom: 0.5rem;">GET /v1/ge/items/{id}</div>
+                    <div style="margin-bottom: 0.5rem;">GET /v1/ge/graph/{id}</div>
+                    <div style="margin-bottom: 0.5rem;">GET /admin/cache/stats</div>
+                    <div>GET /metrics</div>
+                </div>
+            </div>
+            
+            <!-- Links -->
+            <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 2rem;">
+                <h2 style="margin-bottom: 1rem; color: var(--primary);">🔗 Links</h2>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="https://github.com/yourusername/rs-helper" 
+                       target="_blank"
+                       style="padding: 0.75rem 1.5rem; background: var(--bg-tertiary); border-radius: var(--radius); text-decoration: none; color: var(--text-primary); transition: all 0.3s;">
+                        📦 GitHub Repository
+                    </a>
+                    <a href="/v1/ge/categories" 
+                       target="_blank"
+                       style="padding: 0.75rem 1.5rem; background: var(--bg-tertiary); border-radius: var(--radius); text-decoration: none; color: var(--text-primary); transition: all 0.3s;">
+                        📚 API Documentation
+                    </a>
+                    <a href="/metrics" 
+                       target="_blank"
+                       style="padding: 0.75rem 1.5rem; background: var(--bg-tertiary); border-radius: var(--radius); text-decoration: none; color: var(--text-primary); transition: all 0.3s;">
+                        📊 Metrics
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                <p>Made with ❤️ and 🦀 by the RS Helper Team</p>
+                <p style="margin-top: 0.5rem; font-size: 0.875rem;">
+                    This is an unofficial project and is not affiliated with Jagex or RuneScape.
+                </p>
+            </div>
+            
+        </div>
+    </div>
+</section>
+
+{% endblock %}
