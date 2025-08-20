@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  rs-helper:
+    build: .
+    container_name: rs-helper
+    ports:
+      - "3000:3000"  # Main application
+      - "9090:9090"  # Metrics endpoint
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3000
+      - SERVER_LOG_LEVEL=info
+      - CACHE_ENABLED=true
+      - CACHE_MAX_CAPACITY=10000
+      - CACHE_TTL_SECONDS=300
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_REQUESTS_PER_SECOND=50
+      - METRICS_ENABLED=true
+      - METRICS_PORT=9090
+      - RUST_LOG=rs_helper=info,tower_http=debug
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rs-helper-network
+
+  # Optional: Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rs-helper-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - rs-helper-network
+    depends_on:
+      - rs-helper
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rs-helper-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - rs-helper-network
+    depends_on:
+      - prometheus
+
+networks:
+  rs-helper-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
