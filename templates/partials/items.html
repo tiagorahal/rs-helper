@@ -1,53 +1,93 @@
-<input id="page" name="page" type="hidden" value="{{ page }}" hx-swap-oob="true" />
-
-<div class="toolbar">
-  <div class="muted">Showing {{ items.len() }} of ~{{ total }} (page {{ page }})</div>
-</div>
-
 {% if items.len() == 0 %}
-  <div class="muted">No results. Try a different name.</div>
+    <div style="text-align: center; padding: 4rem 2rem;">
+        <svg style="width: 64px; height: 64px; color: var(--text-tertiary); margin: 0 auto 1rem;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-primary);">
+            No items found
+        </h3>
+        <p style="color: var(--text-secondary);">
+            Try adjusting your search criteria or browse a different category.
+        </p>
+    </div>
 {% else %}
-  <div class="cards">
-    {% for it in items %}
-      <div class="card" data-id="{{ it.id }}">
-        <img class="icon" src="{{ it.icon_small }}" alt="" loading="lazy"/>
-        <div>
-          <div class="title">{{ it.name }}</div>
-          <div class="muted">
-            {{ it.category_name }} •
-            {% if it.members %}
-              <span class="badge m">Members</span>
-            {% else %}
-              <span class="badge">F2P</span>
-            {% endif %}
-          </div>
+    <!-- Hidden total for JS to read -->
+    <div data-total="{{ total }}" style="display: none;"></div>
+    
+    <!-- Items Grid -->
+    <div class="items-grid">
+        {% for item in items %}
+            <div class="item-card" 
+                 data-item-id="{{ item.id }}"
+                 onclick="showItemDetails({{ item.id }})">
+                
+                <!-- Item Icon -->
+                <img class="item-icon" 
+                     src="{{ item.icon_small }}" 
+                     alt="{{ item.name }}"
+                     loading="lazy" />
+                
+                <!-- Item Details -->
+                <div class="item-details">
+                    <div class="item-name" title="{{ item.name }}">
+                        {{ item.name }}
+                    </div>
+                    <div class="item-meta">
+                        <span>{{ item.category_name }}</span>
+                        <span>•</span>
+                        {% if item.members %}
+                            <span class="tag members">⭐ Members</span>
+                        {% else %}
+                            <span class="tag f2p">Free</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Price Section -->
+                <div class="item-price-section">
+                    <div class="item-price">
+                        {{ item.price_current }}
+                    </div>
+                    {% if item.price_trend == "positive" %}
+                        <span class="price-trend positive">
+                            <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                            </svg>
+                            Rising
+                        </span>
+                    {% elif item.price_trend == "negative" %}
+                        <span class="price-trend negative">
+                            <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                            </svg>
+                            Falling
+                        </span>
+                    {% else %}
+                        <span class="price-trend neutral">
+                            <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                            </svg>
+                            Stable
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination Info -->
+    {% if items.len() >= 50 %}
+        <div style="text-align: center; margin-top: 2rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius); color: var(--text-secondary);">
+            <p>Showing maximum of 50 items per page. Use the page navigation above to see more results.</p>
         </div>
-        <div class="price {{ it.price_trend }}">{{ it.price_current }}</div>
-      </div>
-    {% endfor %}
-  </div>
-
-  <div class="pager">
-    {% if page > 1 %}
-      <button class="btn ghost"
-              hx-get="/ui/ge/items"
-              hx-target="#results"
-              hx-include="#search"
-              hx-vals='{"page":{{ page - 1 }}}'>
-        ← Prev
-      </button>
-    {% else %}
-      <span></span>
     {% endif %}
-
-    <div class="muted">Page {{ page }}</div>
-
-    <button class="btn ghost"
-            hx-get="/ui/ge/items"
-            hx-target="#results"
-            hx-include="#search"
-            hx-vals='{"page":{{ page + 1 }}}'>
-      Next →
-    </button>
-  </div>
 {% endif %}
+
+<!-- Modal for item details (placeholder for future enhancement) -->
+<script>
+    function showItemDetails(itemId) {
+        // Future: Open modal with detailed graph and info
+        console.log('Show details for item:', itemId);
+        // For now, could redirect to detail page or fetch via HTMX
+    }
+</script>
