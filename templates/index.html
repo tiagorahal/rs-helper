@@ -1,35 +1,241 @@
 {% extends "base.html" %}
 {% block content %}
-  <header>
-    <h1>rs-helper</h1>
-    <div class="muted">CORS-safe RuneScape data. Type an item name and press <strong>Search</strong>.</div>
-  </header>
 
-  <form id="search"
-        class="grid"
-        hx-get="/ui/ge/items"
-        hx-target="#results"
-        hx-trigger="submit"
-        hx-indicator="#global-indicator">
-
-    <div>
-      <label for="q">Search</label>
-      <input id="q" name="q" type="text" placeholder="e.g., boots" autofocus />
+<!-- Header -->
+<header class="header">
+    <div class="container">
+        <div class="header-content">
+            <div>
+                <h1>
+                    <div class="logo">⚔️</div>
+                    <div>
+                        RS Helper
+                        <div class="subtitle">RuneScape Grand Exchange Explorer</div>
+                    </div>
+                </h1>
+            </div>
+            <button class="theme-toggle" @click="theme = theme === 'light' ? 'dark' : 'light'">
+                <svg x-show="theme === 'light'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <svg x-show="theme === 'dark'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </button>
+        </div>
     </div>
+</header>
 
-    <div>
-      <label>&nbsp;</label>
-      <button class="btn" type="submit">Search</button>
+<!-- Search Section -->
+<section class="search-section">
+    <div class="container">
+        <form class="search-grid"
+              hx-get="/ui/ge/items"
+              hx-target="#results"
+              hx-trigger="submit, change from:select, keyup changed delay:500ms from:#q"
+              hx-indicator="#loading"
+              hx-include="this">
+            
+            <!-- Search Input -->
+            <div class="form-group" style="grid-column: span 2;">
+                <label for="q">Search Items</label>
+                <input id="q" 
+                       name="q" 
+                       type="text" 
+                       placeholder="e.g., Dragon Sword, Rune Ore, Potion..."
+                       autocomplete="off" />
+            </div>
+            
+            <!-- Category Select -->
+            <div class="form-group">
+                <label for="category">Category</label>
+                <select id="category" name="category">
+                    {% for c in categories %}
+                        <option value="{{ c.id }}" {% if c.id == 0 %}selected{% endif %}>
+                            {{ c.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Letter Filter -->
+            <div class="form-group">
+                <label for="alpha">First Letter</label>
+                <select id="alpha" name="alpha">
+                    <option value="a" selected>A</option>
+                    <option value="b">B</option>
+                    <option value="c">C</option>
+                    <option value="d">D</option>
+                    <option value="e">E</option>
+                    <option value="f">F</option>
+                    <option value="g">G</option>
+                    <option value="h">H</option>
+                    <option value="i">I</option>
+                    <option value="j">J</option>
+                    <option value="k">K</option>
+                    <option value="l">L</option>
+                    <option value="m">M</option>
+                    <option value="n">N</option>
+                    <option value="o">O</option>
+                    <option value="p">P</option>
+                    <option value="q">Q</option>
+                    <option value="r">R</option>
+                    <option value="s">S</option>
+                    <option value="t">T</option>
+                    <option value="u">U</option>
+                    <option value="v">V</option>
+                    <option value="w">W</option>
+                    <option value="x">X</option>
+                    <option value="y">Y</option>
+                    <option value="z">Z</option>
+                    <option value="#">#</option>
+                </select>
+            </div>
+            
+            <!-- Game Toggle -->
+            <div class="form-group">
+                <label>Game Version</label>
+                <div class="game-toggle" x-data="{ game: 'rs3' }">
+                    <button type="button" 
+                            class="game-option" 
+                            :class="{ active: game === 'rs3' }"
+                            @click="game = 'rs3'; $refs.gameInput.value = 'rs3'; htmx.trigger($refs.form, 'submit')">
+                        RS3
+                    </button>
+                    <button type="button" 
+                            class="game-option" 
+                            :class="{ active: game === 'osrs' }"
+                            @click="game = 'osrs'; $refs.gameInput.value = 'osrs'; htmx.trigger($refs.form, 'submit')">
+                        OSRS
+                    </button>
+                    <input type="hidden" name="game" value="rs3" x-ref="gameInput" />
+                </div>
+            </div>
+            
+            <!-- Page Navigation -->
+            <div class="form-group">
+                <label>Page</label>
+                <div class="pagination" style="border: none; padding: 0; margin: 0;">
+                    <button type="button" 
+                            class="page-btn" 
+                            onclick="changePage(-1)"
+                            id="prevPage">
+                        ← Prev
+                    </button>
+                    <span class="page-info">
+                        Page <span id="currentPage">1</span>
+                    </span>
+                    <button type="button" 
+                            class="page-btn" 
+                            onclick="changePage(1)"
+                            id="nextPage">
+                        Next →
+                    </button>
+                </div>
+                <input type="hidden" name="page" value="1" id="pageInput" />
+            </div>
+            
+            <!-- Search Button -->
+            <div class="form-group">
+                <label>&nbsp;</label>
+                <button type="submit">
+                    Search Items
+                </button>
+            </div>
+        </form>
     </div>
+</section>
 
-    <input id="page" name="page" type="hidden" value="1" />
-  </form>
+<!-- Results Section -->
+<section class="results-container">
+    <div class="container">
+        <!-- Stats Bar -->
+        <div class="stats-bar" id="stats" style="display: none;">
+            <div class="stat">
+                <span class="stat-label">Results:</span>
+                <span class="stat-value" id="resultCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Available:</span>
+                <span class="stat-value" id="totalCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Cache Status:</span>
+                <span class="stat-value" id="cacheStatus">Active</span>
+            </div>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading htmx-indicator">
+            <div class="spinner"></div>
+            <p style="color: var(--text-secondary);">Loading items...</p>
+        </div>
+        
+        <!-- Results Container -->
+        <div id="results">
+            <!-- Initial welcome message -->
+            <div style="text-align: center; padding: 4rem 2rem;">
+                <h2 style="font-size: 2rem; margin-bottom: 1rem; color: var(--text-primary);">
+                    Welcome to RS Helper
+                </h2>
+                <p style="color: var(--text-secondary); font-size: 1.125rem; line-height: 1.75;">
+                    Start by searching for items, selecting a category, or browsing by letter.<br>
+                    Switch between RS3 and OSRS data sources using the toggle above.
+                </p>
+                <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <div class="tag">🔍 Advanced Search</div>
+                    <div class="tag">📊 Live Prices</div>
+                    <div class="tag">⚡ Fast & Cached</div>
+                    <div class="tag">🌙 Dark Mode</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
-  <div id="global-indicator" class="htmx-indicator" role="status" aria-live="polite">
-    <div class="spinner" aria-hidden="true"></div>
-    <span>Carregando dados da API…</span>
-  </div>
+<script>
+    let currentPage = 1;
+    
+    function changePage(delta) {
+        currentPage = Math.max(1, currentPage + delta);
+        document.getElementById('pageInput').value = currentPage;
+        document.getElementById('currentPage').textContent = currentPage;
+        
+        // Trigger form submission
+        const form = document.querySelector('form');
+        htmx.trigger(form, 'submit');
+    }
+    
+    // Update stats when results load
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target.id === 'results') {
+            const statsEl = document.getElementById('stats');
+            const resultCount = evt.detail.target.querySelectorAll('.item-card').length;
+            
+            if (resultCount > 0) {
+                statsEl.style.display = 'flex';
+                document.getElementById('resultCount').textContent = resultCount;
+                
+                // Extract total from response if available
+                const totalEl = evt.detail.target.querySelector('[data-total]');
+                if (totalEl) {
+                    document.getElementById('totalCount').textContent = totalEl.dataset.total;
+                }
+            } else {
+                statsEl.style.display = 'none';
+            }
+            
+            // Update pagination buttons
+            document.getElementById('prevPage').disabled = currentPage <= 1;
+        }
+    });
+    
+    // Reset page when search changes
+    document.getElementById('q').addEventListener('input', function() {
+        currentPage = 1;
+        document.getElementById('pageInput').value = 1;
+        document.getElementById('currentPage').textContent = 1;
+    });
+</script>
 
-  <div class="results" id="results" hx-indicator="#global-indicator">
-  </div>
 {% endblock %}
