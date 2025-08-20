@@ -1,15 +1,31 @@
-use axum::{Router, routing::get, extract::Query, response::Html};
+use axum::{
+    Router, 
+    routing::get, 
+    extract::Query, 
+    response::Html,
+    http::StatusCode,
+};
 use askama::Template;
 use serde::Deserialize;
 
-use crate::types::{GeCategory, GeItem};
-use crate::ge::{fetch_items_for_ui, CATEGORIES, Game};
+use crate::{
+    types::{GeCategory, GeItem, Game},
+    ge::{fetch_items_for_ui, CATEGORIES},
+    metrics::RequestTimer,
+};
 
 pub fn router() -> Router {
     Router::new()
         .route("/", get(index))
         .route("/ui/ge/items", get(items_partial))
+        .route("/ui/ge/item/:id", get(item_modal))
+        .route("/about", get(about_page))
 }
+
+// Templates
+#[derive(Template)]
+#[template(path = "base.html")]
+struct BaseT;
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -23,100 +39,149 @@ struct ItemsT<'a> {
     items: &'a [UiItem],
     total: i64,
     page: u32,
+    has_more: bool,
 }
 
+#[derive(Template)]
+#[template(path = "partials/item_modal.html")]
+struct ItemModalT<'a> {
+    item: &'a UiItemDetail,
+}
+
+#[derive(Template)]
+#[template(path = "about.html")]
+struct AboutT {
+    version: &'static str,
+    rust_version: &'static str,
+}
+
+// Main page handler
 pub async fn index() -> Html<String> {
-    Html(IndexT { categories: CATEGORIES }.render().unwrap())
+    let timer = RequestTimer::new("/");
+    let html = IndexT { categories: CATEGORIES }.render().unwrap();
+    timer.record(200);
+    Html(html)
 }
 
+// About page
+pub async fn about_page() -> Html<String> {
+    let timer = RequestTimer::new("/about");
+    let html = AboutT {
+        version: env!("CARGO_PKG_VERSION"),
+        rust_version: env!("CARGO_PKG_RUST_VERSION"),
+    }.render().unwrap_or_else(|_| {
+        AboutT {
+            version: "0.2.0",
+            rust_version: "1.82",
+        }.render().unwrap()
+    });
+    timer.record(200);
+    Html(html)
+}
+
+// Query parameters for items
 #[derive(Debug, Deserialize)]
 pub struct UiItemsQuery {
-    pub q: Option<String>,
-    pub page: Option<u32>,
-    #[allow(dead_code)]
-    pub category: Option<i32>,
-    #[allow(dead_code)]
+    pub category: i32,
     pub alpha: Option<String>,
+    pub q: Option<String>,      // search term
+    #[serde(default)]
+    pub game: Game,
+    pub page: Option<u32>,
 }
 
-/// Busca global por nome (sem escolher categoria)
-async fn search_all_categories_by_term(term: &str, page: u32) -> Result<(i64, Vec<GeItem>), String> {
-    // Heurística: usa a primeira letra do termo para reduzir chamadas
-    // (o endpoint de itens exige alpha). Dígitos viram "#".
-    let alpha = term
-        .chars()
-        .next()
-        .map(|c| c.to_ascii_lowercase())
-        .map(|c| if c.is_ascii_alphabetic() { c.to_string() } else { "#".to_string() })
-        .unwrap_or_else(|| "a".to_string());
-
-    let mut all: Vec<GeItem> = Vec::new();
-    let needle = term.to_lowercase();
-
-    for cat in CATEGORIES {
-        match fetch_items_for_ui(cat.id, &alpha, 1, Game::Rs3).await {
-            Ok(list) => {
-                for it in list.items {
-                    if it.name.to_lowercase().contains(&needle) {
-                        all.push(it);
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("fetch_items_for_ui error on cat {}: {}", cat.id, e);
-            }
-        }
-    }
-
-    // Ordena por nome e pagina localmente (50 por página), sem exigir Clone
-    all.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    let total = all.len() as i64;
-    let per_page = 50usize;
-    let start = per_page.saturating_mul(page.saturating_sub(1) as usize);
-    let end = (start + per_page).min(all.len());
-
-    let page_vec: Vec<GeItem> = all
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, it)| if i >= start && i < end { Some(it) } else { None })
-        .collect();
-
-    Ok((total, page_vec))
-}
-
-pub async fn items_partial(Query(q): Query<UiItemsQuery>) -> Html<String> {
+// Items partial handler with search
+pub async fn items_partial(Query(q): Query<UiItemsQuery>) -> Result<Html<String>, (StatusCode, Html<String>)> {
+    let timer = RequestTimer::new("/ui/ge/items");
     let page = q.page.unwrap_or(1);
-
-    // Requer um termo de busca
-    let term = match q.q.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
-        Some(t) => t.to_string(),
-        None => {
-            return Html(
-                "<div class='muted'>Type an item name and press <strong>Search</strong>.</div>"
-                    .to_string(),
-            );
-        }
-    };
-
-    let (total, page_items) = match search_all_categories_by_term(&term, page).await {
-        Ok(res) => res,
+    let alpha = q.alpha.clone().unwrap_or_else(|| "a".to_string());
+    
+    // Fetch items
+    let list = match fetch_items_for_ui(q.category, &alpha, page, q.game).await {
+        Ok(v) => v,
         Err(e) => {
-            let msg = format!("Error: {}", askama_escape(&e));
-            return Html(format!("<div class='error'>{}</div>", msg));
+            timer.record(500);
+            let error_html = format!(
+                r#"<div class="error">
+                    <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{}</span>
+                </div>"#,
+                html_escape(&e)
+            );
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, Html(error_html)));
         }
     };
-
-    let mut items: Vec<UiItem> = page_items.into_iter().map(UiItem::from).collect();
-    if items.len() > 50 { items.truncate(50); }
-
-    Html(ItemsT {
-        items: &items,
-        total,
+    
+    // Filter by search term if provided
+    let mut items: Vec<UiItem> = list.items.into_iter()
+        .filter(|item| {
+            if let Some(ref search_term) = q.q {
+                let term = search_term.trim().to_lowercase();
+                if term.is_empty() { 
+                    return true; 
+                }
+                item.name.to_lowercase().contains(&term) ||
+                item.description.as_ref()
+                    .map(|d| d.to_lowercase().contains(&term))
+                    .unwrap_or(false)
+            } else { 
+                true 
+            }
+        })
+        .map(UiItem::from)
+        .collect();
+    
+    // Pagination info
+    let total_items = items.len();
+    let items_per_page = 50;
+    let has_more = total_items > items_per_page || page > 1;
+    
+    // Truncate to page size
+    if items.len() > items_per_page {
+        items.truncate(items_per_page);
+    }
+    
+    let html = ItemsT { 
+        items: &items, 
+        total: list.total,
         page,
-    }.render().unwrap())
+        has_more,
+    }.render().unwrap_or_else(|e| {
+        format!("<div class='error'>Template error: {}</div>", e)
+    });
+    
+    timer.record(200);
+    Ok(Html(html))
 }
 
-/// Modelo para renderização
+// Item modal/detail view
+pub async fn item_modal(axum::extract::Path(id): axum::extract::Path<i64>) -> Html<String> {
+    let timer = RequestTimer::new("/ui/ge/item/:id");
+    
+    // For now, return a placeholder
+    // In production, fetch full item details including graph data
+    let item = UiItemDetail {
+        id,
+        name: "Item Details".to_string(),
+        description: "Loading...".to_string(),
+        price_current: "-".to_string(),
+        price_change: "-".to_string(),
+        members: false,
+        icon_large: "".to_string(),
+    };
+    
+    let html = ItemModalT { item: &item }.render().unwrap_or_else(|_| {
+        "<div>Error loading item</div>".to_string()
+    });
+    
+    timer.record(200);
+    Html(html)
+}
+
+// UI Models
 #[derive(Debug)]
 struct UiItem {
     id: i64,
@@ -124,40 +189,56 @@ struct UiItem {
     category_name: String,
     members: bool,
     price_current: String,
-    price_trend: String, 
+    price_trend: String,
+    price_change_percent: String,
     icon_small: String,
 }
 
+#[derive(Debug)]
+struct UiItemDetail {
+    id: i64,
+    name: String,
+    description: String,
+    price_current: String,
+    price_change: String,
+    members: bool,
+    icon_large: String,
+}
+
 impl From<GeItem> for UiItem {
-    fn from(g: GeItem) -> Self {
+    fn from(item: GeItem) -> Self {
+        use crate::types::format_price_compact;
+        
+        let price_change_percent = item.price.change_percentage
+            .map(|p| {
+                if p > 0.0 {
+                    format!("+{:.1}%", p)
+                } else {
+                    format!("{:.1}%", p)
+                }
+            })
+            .unwrap_or_else(|| "—".to_string());
+        
         UiItem {
-            id: g.id,
-            name: g.name,
-            category_name: g.category_name,
-            members: g.members,
-            price_current: g.price.current.map(format_compact).unwrap_or_else(|| "-".to_string()),
-            price_trend: g.price.trend,
-            icon_small: g.icons.small,
+            id: item.id,
+            name: item.name,
+            category_name: item.category_name,
+            members: item.members,
+            price_current: item.price.current
+                .map(format_price_compact)
+                .unwrap_or_else(|| "—".to_string()),
+            price_trend: item.price.trend,
+            price_change_percent,
+            icon_small: item.icons.small,
         }
     }
 }
 
-// -------- utils ----------
-fn format_compact(v: i64) -> String {
-    let abs = (v as f64).abs();
-    let (num, suf) = if abs >= 1_000_000_000.0 {
-        (abs / 1_000_000_000.0, "b")
-    } else if abs >= 1_000_000.0 {
-        (abs / 1_000_000.0, "m")
-    } else if abs >= 1_000.0 {
-        (abs / 1_000.0, "k")
-    } else {
-        (abs, "")
-    };
-    let sign = if v < 0 { "-" } else { "" };
-    if suf.is_empty() { format!("{sign}{}", v.abs()) } else { format!("{sign}{:.2}{}", num, suf) }
-}
-
-fn askama_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+// Utility functions
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
 }
